@@ -1,29 +1,29 @@
-print("[ForceFeed] Mod Loaded")
+local config = require "config"
+local not_hooked = true
 
-local notHooked = true
+local function changeRecoverSatiety()
+    if (not_hooked) then
+        RegisterHook("/Game/Pal/Blueprint/Controller/AIAction/BaseCamp/RecoverHungry/BP_AIAction_BaseCampRecoverHungry.BP_AIAction_BaseCampRecoverHungry_C:ChangeActionEat", function (self)
+            local controller = self:get()
+            local pal = controller:GetCharacter()
+            local pal_params = pal.CharacterParameterComponent
+            local max_full_stomach = pal_params:GetMaxFullStomach()
+            controller.HungeryParameter.RecoverSatietyTo = max_full_stomach * config.satiety_percentage
+        end)
 
-RegisterHook("/Script/Engine.PlayerController:ClientRestart", function (Context)
-    NotifyOnNewObject("/Game/Pal/Blueprint/Controller/AIAction/BaseCamp/RecoverHungry/BP_AIAction_BaseCampRecoverHungry.BP_AIAction_BaseCampRecoverHungry_C", function (Component)
-        if (notHooked) then
-            print("Registering BaseCampRecoverHungry Hook")
-            RegisterHook("/Game/Pal/Blueprint/Controller/AIAction/BaseCamp/RecoverHungry/BP_AIAction_BaseCampRecoverHungry.BP_AIAction_BaseCampRecoverHungry_C:ActionStart", function (self, APawn)
-                print("Editing New Hunger Parameter")
-                local controller =  self:get()
-                local pal = controller:GetCharacter()
-                print("Pal object: " .. pal:GetFullName())
+        not_hooked = false
+    end
+end
 
-                local pal_params = pal.CharacterParameterComponent
-                local max_full_stomach = pal_params:GetMaxFullStomach()
-                print("Pal MaxFullStomach is: " .. max_full_stomach)
+local function editEatSpeed(self)
+    self.EatTime = config.eat_speed
+end
 
-                local new_satiety = max_full_stomach * 0.95
-                local hungery_params = controller.HungeryParameter
-                print("Current HungeryParameters: EatMaxNum=" .. hungery_params.EatMaxNum .. " RecoverSatietyTo=" .. hungery_params.RecoverSatietyTo .. " RecoverSanityTo=" .. hungery_params.RecoverSanityTo)
+local function hookBaseCampRecoverHungry()
+    NotifyOnNewObject("/Game/Pal/Blueprint/Controller/AIAction/BaseCamp/RecoverHungry/BP_AIAction_BaseCampRecoverHungry.BP_AIAction_BaseCampRecoverHungry_C", changeRecoverSatiety)
+    if config.change_eat_speed then
+        NotifyOnNewObject("/Game/Pal/Blueprint/Controller/AIAction/BaseCamp/RecoverHungry/BP_AIAction_BaseCampRecoverHungry_Eat.BP_AIAction_BaseCampRecoverHungry_Eat_C", editEatSpeed)
+    end
+end
 
-                controller.HungeryParameter.RecoverSatietyTo = new_satiety
-                print("Changed RecoverSatietyTo new maximum: " .. new_satiety)
-            end)
-            notHooked = false
-        end
-    end)
-end)
+RegisterHook("/Script/Engine.PlayerController:ServerAcknowledgePossession", hookBaseCampRecoverHungry)
